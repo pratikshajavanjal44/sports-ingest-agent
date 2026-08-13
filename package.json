@@ -1,0 +1,16 @@
+{
+  "name": "sports-ingest-agent",
+  "version": "1.0.0",
+  "private": true,
+  "description": "AI-powered sports insights chat agent on Cloudflare Workers AI, Durable Objects, and Workflows.",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "cf-typegen": "wrangler types"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20250801.0",
+    "typescript": "^5.5.4",
+    "wrangler": "^3.78.0"
+  }
+}

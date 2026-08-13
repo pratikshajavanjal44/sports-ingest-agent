@@ -1,0 +1,26 @@
+name = "sports-ingest-agent"
+main = "src/index.ts"
+compatibility_date = "2026-08-01"
+compatibility_flags = ["nodejs_compat"]
+
+# --- LLM: Workers AI (Llama 3.3) ---
+[ai]
+binding = "AI"
+
+# --- Memory/state: Durable Object per chat session ---
+[[durable_objects.bindings]]
+name = "CHAT_SESSION"
+class_name = "ChatSession"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["ChatSession"]
+
+# --- Orchestration: Workflow that fetches sports data then calls the LLM ---
+[[workflows]]
+binding = "SPORTS_WORKFLOW"
+name = "sports-insights-workflow"
+class_name = "SportsInsightsWorkflow"
+
+[observability]
+enabled = true
