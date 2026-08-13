@@ -20,8 +20,22 @@ export class SportsInsightsWorkflow extends WorkflowEntrypoint<
   ): Promise<WorkflowResult> {
     const { message, history } = event.payload;
 
-    // Step 1: pull light sports context from a free public API (TheSportsDB
-    // test key) if the message looks like it references a team.
+    // Step 1: use the LLM to extract the team name being asked about, so
+    // lookups aren't fooled by ambiguous team names (e.g. "Lakers" could be
+    // NBA or NCAA hockey). Returns "NONE" if no team is mentioned.
+    const teamName = await step.do(
+      "extract-team-name",
+      {
+        retries: { limit: 2, delay: "1 second", backoff: "exponential" },
+        timeout: "10 seconds",
+      },
+      async () => {
+        return await extractTeamName(this.env, message);
+      }
+    );
+
+    // Step 2: pull light sports context from a free public API (TheSportsDB
+    // test key) using the extracted team name.
     const contextUsed = await step.do(
       "fetch-sports-context",
       {
@@ -29,11 +43,11 @@ export class SportsInsightsWorkflow extends WorkflowEntrypoint<
         timeout: "10 seconds",
       },
       async () => {
-        return await fetchSportsContext(message);
+        return await fetchSportsContext(teamName);
       }
     );
 
-    // Step 2: call the LLM with conversation history + fetched context.
+    // Step 3: call the LLM with conversation history + fetched context.
     const reply = await step.do(
       "generate-response",
       {
@@ -49,14 +63,36 @@ export class SportsInsightsWorkflow extends WorkflowEntrypoint<
   }
 }
 
-async function fetchSportsContext(message: string): Promise<string> {
-  const guess = extractTeamGuess(message);
-  if (!guess) return "";
+async function extractTeamName(env: Env, message: string): Promise<string> {
+  try {
+    const result = await env.AI.run("@cf/meta/llama-3.1-8b-instruct", {
+      messages: [
+        {
+          role: "system",
+          content:
+            "Extract the single sports team the user is asking about. " +
+            "Respond with ONLY the full team name including city/region if " +
+            "mentioned (e.g. 'Los Angeles Lakers', 'Manchester United'), " +
+            "or respond with exactly NONE if no specific team is mentioned. " +
+            "No punctuation, no explanation, just the name or NONE.",
+        },
+        { role: "user", content: message },
+      ],
+    });
+    const text = (result as { response?: string }).response?.trim() || "NONE";
+    return text.replace(/["'.]/g, "");
+  } catch {
+    return "NONE";
+  }
+}
+
+async function fetchSportsContext(teamName: string): Promise<string> {
+  if (!teamName || teamName.toUpperCase() === "NONE") return "";
 
   try {
     const res = await fetch(
       `https://www.thesportsdb.com/api/v1/json/3/searchteams.php?t=${encodeURIComponent(
-        guess
+        teamName
       )}`
     );
     if (!res.ok) return "";
@@ -78,16 +114,6 @@ async function fetchSportsContext(message: string): Promise<string> {
   } catch {
     return "";
   }
-}
-
-function extractTeamGuess(message: string): string | null {
-  // Naive heuristic: use the longest capitalized word sequence as a team
-  // name guess. Good enough as a starting point — swap for a real NER /
-  // entity-extraction step or a sports data provider as you extend this.
-  const matches = message.match(/\b([A-Z][a-zA-Z.]*\s?){1,3}\b/g);
-  if (!matches) return null;
-  const best = matches.sort((a, b) => b.length - a.length)[0];
-  return best?.trim() || null;
 }
 
 async function generateReply(
