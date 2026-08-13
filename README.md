@@ -1,9 +1,9 @@
 # Sports Insights Agent
 
-An AI-powered chat agent built on Cloudflare's developer platform. Ask it about
-a sports team and it fetches live context, reasons over it with an LLM, and
-remembers the conversation.
+**Live demo:** https://sportagent.pages.dev
+**API (Worker):** https://sports-ingest-agent.pratiksha-javanjal44.workers.dev
 
+An AI-powered chat agent built on Cloudflare's developer platform. Ask it about
 ## Architecture
 
 | Requirement | Cloudflare product | Where |

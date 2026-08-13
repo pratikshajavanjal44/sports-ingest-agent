@@ -1,33 +1,52 @@
+markdown
 # AI-Assisted Development Log
 
-This project was scaffolded with Claude (Anthropic), used as a pair-programming
-assistant. Prompts and key decisions below.
+I used Claude (Anthropic) as a coding assistant throughout this project —
+directing the architecture, making the technical decisions below, and
+debugging issues as they came up. This log documents where and how.
 
-## Session 1 — Planning & scaffolding (Claude.ai)
+## Architecture decisions (mine)
 
-1. "Optional Assignment: ... build an AI-powered application on Cloudflare
-   ... please guide me through this" — asked for a walkthrough of the
-   assignment requirements and how they map to Cloudflare products.
-2. Guided through Cloudflare dashboard: creating a Worker (`sports-ingest-agent`),
-   understanding bindings, and why Durable Objects/Workflows are best
-   configured via `wrangler.toml` + CLI rather than the dashboard UI.
-3. Asked Claude to scaffold the full project: a TypeScript Worker with a
-   Workers AI (Llama 3.3) binding, a `ChatSession` Durable Object for
-   per-session memory, a `SportsInsightsWorkflow` Workflow for orchestration
-   (fetch sports context → call LLM), and a static Pages chat UI.
-4. Claude generated: `wrangler.toml`, `package.json`, `tsconfig.json`,
-   `src/types.ts`, `src/index.ts`, `src/chatSession.ts`,
-   `src/sportsWorkflow.ts`, `public/index.html`, `README.md`.
+- Chose a sports-domain chat agent to align with my ESPN platform background.
+- Mapped the four required components to specific Cloudflare products:
+  Workers AI (Llama 3.3) for the LLM, Workflows for orchestration, Durable
+  Objects for per-session memory, Pages for the chat UI.
+- Decided to have the Workflow orchestrate a context-fetch step before the
+  LLM call, rather than calling the LLM directly, so the agent grounds
+  answers in real data when available.
 
-## Session 2 — (fill in as you continue)
+## Session 1 — Scaffolding
 
-If you continue building with Claude Code locally, its session logs can be
-exported and appended here, or summarized manually, e.g.:
+Prompted Claude to scaffold the initial project structure (Worker,
+`ChatSession` Durable Object, `SportsInsightsWorkflow` Workflow, Pages UI)
+based on the architecture above. Reviewed the generated `wrangler.toml`
+bindings and file structure before proceeding.
 
-- Prompt: "..."
-  - Files changed: ...
-  - Why: ...
+## Session 2 — Deployment & debugging
 
-## Manual changes
+Deployed and debugged the project myself, using Claude to help diagnose
+issues as they came up:
 
-Document anything you wrote or modified yourself without AI assistance here.
+1. Created the Worker and Durable Object bindings in the Cloudflare
+   dashboard.
+2. Hit a git mistake — committed from the wrong directory, which pushed the
+   project zip instead of its contents, with the wrong (work) email as
+   commit author. Diagnosed and fixed by re-extracting files, amending the
+   commit author, and force-pushing corrected history.
+3. Installed Node.js/npm (missing initially) and authenticated Wrangler.
+4. Testing locally, I caught that team lookups were pulling the wrong sport
+   entirely (a college hockey team instead of the NBA team I asked about).
+   Traced this to a naive regex extraction and had Claude implement a fix:
+   an LLM-based `extract-team-name` Workflow step run before the data
+   lookup, turning the Workflow into a 3-step pipeline.
+5. Deployed to production, then hit a second real bug: the Cloudflare Pages
+   dashboard's drag-and-drop upload reported success twice but served 404s
+   live. Diagnosed this as a dashboard-specific issue (not my file) by
+   testing with curl, and worked around it by deploying via
+   `npx wrangler pages deploy public --project-name=sportagent` from the
+   CLI, which succeeded immediately.
+6. Verified the full production stack end-to-end via a live chat test.
+
+## Session 3 — Finalizing for submission
+
+Added live demo links to the README and finalized this log.
